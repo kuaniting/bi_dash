@@ -674,6 +674,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 y=alt.Y(f'{group_col}:N', sort=top_cats),
                 x=alt.X('x_mid:Q'),
                 text=alt.condition(alt.datum.數量 > threshold, alt.Text('顯示標籤:N'), alt.value(''))
+                tooltip=alt.value(None)
             )
             
             # 加大右側總數標籤
@@ -681,12 +682,13 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 y=alt.Y(f'{group_col}:N', sort=top_cats),
                 x=alt.X('總數:Q'),
                 text='總數:Q'
+                tooltip=alt.value(None)
             )
             
             # 3. 關鍵修改：將固定的 height=400 替換為 height=alt.Step(50)[cite: 6]
             # 這樣每個長條會分配 50px 的高度，資料越多圖表就自動長越高！
             final_stacked = (bars + text_inside + total_text).properties(height=alt.Step(50)).configure_axis(labelFontSize=15)
-            with st.container(height=450):
+            with st.container(height=450, border=True):
                 st.altair_chart(final_stacked, use_container_width=True)
         else:
             st.info("尚無數據可繪製")
