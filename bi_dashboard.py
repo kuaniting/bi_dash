@@ -824,6 +824,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         df_list['剩餘天數'] = (df_list['DATEE_PARSED'] - now).dt.days
         df_list['到期日'] = df_list['DATEE_PARSED'].dt.strftime('%Y-%m-%d')
         df_list_display = df_list[['LICE_NAME', 'name_display', 'ADM_DEPT_NAME', '到期日', '剩餘天數', 'STATUS_LABEL']].copy()
+        df_list_display['剩餘天數'] = df_list_display['剩餘天數'].fillna(0).astype(int)
         df_list_display.columns = ['證照名稱', '持有人', '所屬科別', '到期日', '剩餘天數', '狀態']
         
         # 依照狀態與剩餘天數排序，讓緊急的排前面
