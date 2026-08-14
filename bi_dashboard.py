@@ -564,7 +564,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 theta=alt.Theta(field="數量", type="quantitative"),
                 color=alt.Color(field="圖例標籤", type="nominal", 
                                 scale=alt.Scale(domain=domain_list, range=range_list),
-                                legend=alt.Legend(title=None, orient="right", labelFontSize=17, labelFontWeight="bold", labelColor="#1e293b", labelLimit=400, symbolSize=200)),
+                                legend=alt.Legend(title=None, orient="bottom", columns=2, labelFontSize=16, labelFontWeight="bold", labelColor="#1e293b", labelLimit=400, symbolSize=200)),
                 tooltip=['狀態', '數量', '百分比']
             )
             pie_chart = base_pie.mark_arc(innerRadius=80, outerRadius=115)
@@ -599,8 +599,8 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 theta=alt.Theta(field="數量", type="quantitative"),
                 color=alt.Color(field="圖例標籤", type="nominal", 
                                 scale=alt.Scale(scheme="category10"),
-                                legend=alt.Legend(title=None, orient="right", labelFontSize=17, labelFontWeight="bold", labelColor="#1e293b", labelLimit=400, symbolSize=200)),
-                tooltip=['分類名稱', '數量', '百分比']
+                                legend=alt.Legend(title=None, orient="bottom", columns=2, labelFontSize=16, labelFontWeight="bold", labelColor="#1e293b", labelLimit=400, symbolSize=200)),
+    tooltip=['分類名稱', '數量', '百分比']
             )
             pie_chart2 = base_pie2.mark_arc(innerRadius=80, outerRadius=115)
             
