@@ -673,7 +673,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             text_inside = alt.Chart(stacked_counts).mark_text(fontWeight='bold', size=16, color='white').encode(
                 y=alt.Y(f'{group_col}:N', sort=top_cats),
                 x=alt.X('x_mid:Q'),
-                text=alt.condition(alt.datum.數量 > threshold, alt.Text('顯示標籤:N'), alt.value(''))
+                text=alt.condition(alt.datum.數量 > threshold, alt.Text('顯示標籤:N'), alt.value('')),
                 tooltip=alt.value(None)
             )
             
@@ -681,7 +681,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             total_text = alt.Chart(totals).mark_text(dx=10, align='left', fontWeight='bolder', color='#1e293b', size=18).encode(
                 y=alt.Y(f'{group_col}:N', sort=top_cats),
                 x=alt.X('總數:Q'),
-                text='總數:Q'
+                text='總數:Q',
                 tooltip=alt.value(None)
             )
             
