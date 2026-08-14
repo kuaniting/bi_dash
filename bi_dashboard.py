@@ -613,14 +613,16 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             st.info("尚無數據可繪製")
             
     with chart_col3:
-        st.markdown(f"#### 【{prefix_text}】證照狀態分佈 (Top 6)")
+        # 1. 移除標題上的 (Top 6)[cite: 6]
+        st.markdown(f"#### 【{prefix_text}】證照狀態分佈")
         st.markdown(f"<div style='font-size: 15px; color: #94a3b8; margin-top: -5px;'>🔄 數據更新至：{pd.Timestamp.now().strftime('%Y/%m/%d %H:%M')}</div>", unsafe_allow_html=True)
         
         is_single_category = not df_final.empty and df_final['CATEGORY'].nunique() == 1
         if not df_final.empty:
             group_col = 'LICE_NAME' if is_single_category else 'CATEGORY'
             
-            top_cats = df_final[group_col].value_counts().head(6).index.tolist()
+            # 2. 移除 .head(6) 的限制，改為抓取所有類別並依照數量多寡排序[cite: 6]
+            top_cats = df_final[group_col].value_counts().index.tolist()
             df_stacked = df_final[df_final[group_col].isin(top_cats)]
             
             stacked_counts = df_stacked.groupby([group_col, 'STATUS_LABEL']).size().reset_index(name='數量')
@@ -681,8 +683,9 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 text='總數:Q'
             )
             
-            # 拉高圖表整體高度與 X/Y 軸字體
-            final_stacked = (bars + text_inside + total_text).properties(height=400).configure_axis(labelFontSize=15)
+            # 3. 關鍵修改：將固定的 height=400 替換為 height=alt.Step(50)[cite: 6]
+            # 這樣每個長條會分配 50px 的高度，資料越多圖表就自動長越高！
+            final_stacked = (bars + text_inside + total_text).properties(height=alt.Step(50)).configure_axis(labelFontSize=15)
             st.altair_chart(final_stacked, use_container_width=True)
         else:
             st.info("尚無數據可繪製")
