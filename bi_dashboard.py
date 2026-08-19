@@ -418,11 +418,12 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         <style>
         .metric-card-container {
             display: flex;
+            flex-wrap: wrap; /* 🌟 關鍵修復：允許手機版自動把卡片往下折行 */
             gap: 20px;
             margin-bottom: 24px;
         }
         .metric-card-link {
-            flex: 1;
+            flex: 1 1 140px; /* 🌟 關鍵修復：設定最小寬度，手機上會自動完美變成 2x2 的雙欄方塊！ */
             text-decoration: none !important;
             color: inherit !important;
         }
