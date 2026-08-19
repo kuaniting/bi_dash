@@ -216,6 +216,26 @@ def load_data():
             return pd.NaT
             
     df_merged['DATEE_PARSED'] = df_merged['DATEE'].apply(parse_date)
+
+    # 🌟 優化 1：強化日期解析與完美備用機制，產生 APP_DATE
+    def parse_create_dtm(d):
+        if pd.isna(d): return pd.NaT
+        s = str(d).strip()
+        # 完美相容您的 2020/12/23 AM 09:41:17 格式
+        if " AM " in s or " PM " in s:
+            ampm = " AM" if " AM " in s else " PM"
+            s = s.replace(" AM ", " ").replace(" PM ", " ") + ampm
+        return pd.to_datetime(s, errors='coerce')
+        
+    if 'CREATE_DTM' in df_merged.columns:
+        df_merged['APP_DATE'] = df_merged['CREATE_DTM'].apply(parse_create_dtm)
+    else:
+        df_merged['APP_DATE'] = pd.NaT
+        
+    # 【關鍵防呆】如果 CREATE_DTM 是空的，強制用 DATES (發證日) 補上！保證圖表不斷線！
+    if 'DATES' in df_merged.columns:
+        df_merged['APP_DATE'] = df_merged['APP_DATE'].fillna(df_merged['DATES'].apply(parse_date))
+
     return df_merged
 
 
