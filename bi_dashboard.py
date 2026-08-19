@@ -573,18 +573,18 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         
         if not status_counts.empty:
             total_s = status_counts['數量'].sum()
-            status_counts['百分比'] = (status_counts['數量'] / total_s * 100).round(1)
-            status_counts['圖例標籤'] = status_counts.apply(lambda r: f"{r['狀態']}  {r['數量']:,} ({r['百分比']}%)", axis=1)
+            status_counts['百分比'] = (status_counts['數量'] / total_s * 100).round(1).astype(str) + "%"
             
             color_map = {"有效": "#10b981", "快過期 (30天內)": "#f59e0b", "已逾期": "#ef4444", "未知": "#94a3b8"}
-            domain_list = status_counts['圖例標籤'].tolist()
+            domain_list = status_counts['狀態'].tolist()
             range_list = [color_map.get(s, "#94a3b8") for s in status_counts['狀態']]
             
+            # 🌟 解法二：隱藏 Altair 原生圖例 (legend=None)
             base_pie = alt.Chart(status_counts).encode(
                 theta=alt.Theta(field="數量", type="quantitative"),
-                color=alt.Color(field="圖例標籤", type="nominal", 
+                color=alt.Color(field="狀態", type="nominal", 
                                 scale=alt.Scale(domain=domain_list, range=range_list),
-                                legend=alt.Legend(title=None, orient="bottom", columns=1, labelFontSize=14, labelFontWeight="bold", labelColor="#1e293b", labelLimit=0, symbolSize=200),
+                                legend=None),
                 tooltip=['狀態', '數量', '百分比']
             )
             pie_chart = base_pie.mark_arc(innerRadius=80, outerRadius=115)
@@ -592,8 +592,20 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             text_val = alt.Chart(pd.DataFrame({'t': [f"{total_s:,}"]})).mark_text(size=42, fontWeight='bolder', color='#0F172A', dy=-12).encode(text='t:N')
             text_lbl = alt.Chart(pd.DataFrame({'t': ['總證照數']})).mark_text(size=18, fontWeight='bold', color='#475569', dy=25).encode(text='t:N')
             
-            final_pie = (pie_chart + text_val + text_lbl).properties(height=350)
+            final_pie = (pie_chart + text_val + text_lbl).properties(height=300)
             st.altair_chart(final_pie, use_container_width=True)
+            
+            # 🌟 解法二：改用 DataFrame 作為 RWD 圖例
+            st.dataframe(
+                status_counts,
+                column_config={
+                    "狀態": st.column_config.TextColumn("狀態", width="medium"),
+                    "數量": st.column_config.NumberColumn("數量", format="%d", width="small"),
+                    "百分比": st.column_config.TextColumn("佔比", width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
         else:
             st.info("尚無數據可繪製")
             
@@ -606,34 +618,44 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         is_single_category = not df_final.empty and df_final['CATEGORY'].nunique() == 1
         group_col = 'LICE_NAME' if is_single_category else 'CATEGORY'
         category_counts = df_final[group_col].value_counts().reset_index()
-        if is_single_category:
-            category_counts = category_counts.head(8)
+        # 移除限制，顯示所有類別
         category_counts.columns = ['分類名稱', '數量']
         
         if not category_counts.empty:
             total_c = category_counts['數量'].sum()
-            category_counts['百分比'] = (category_counts['數量'] / total_c * 100).round(1)
-            category_counts['圖例標籤'] = category_counts.apply(lambda r: f"{r['分類名稱']}  {r['數量']:,} ({r['百分比']}%)", axis=1)
+            category_counts['百分比'] = (category_counts['數量'] / total_c * 100).round(1).astype(str) + "%"
             
+            # 🌟 解法二：隱藏 Altair 原生圖例 (legend=None)
             base_pie2 = alt.Chart(category_counts).encode(
                 theta=alt.Theta(field="數量", type="quantitative"),
-                color=alt.Color(field="圖例標籤", type="nominal", 
+                color=alt.Color(field="分類名稱", type="nominal", 
                                 scale=alt.Scale(scheme="category10"),
-                                legend=alt.Legend(title=None, orient="bottom", columns=1, labelFontSize=14, labelFontWeight="bold", labelColor="#1e293b", labelLimit=0, symbolSize=200),
-    tooltip=['分類名稱', '數量', '百分比']
+                                legend=None),
+                tooltip=['分類名稱', '數量', '百分比']
             )
             pie_chart2 = base_pie2.mark_arc(innerRadius=80, outerRadius=115)
             
             text_val2 = alt.Chart(pd.DataFrame({'t': [f"{total_c:,}"]})).mark_text(size=42, fontWeight='bolder', color='#0F172A', dy=-12).encode(text='t:N')
             text_lbl2 = alt.Chart(pd.DataFrame({'t': ['總數量']})).mark_text(size=18, fontWeight='bold', color='#475569', dy=25).encode(text='t:N')
             
-            final_pie2 = (pie_chart2 + text_val2 + text_lbl2).properties(height=350)
+            final_pie2 = (pie_chart2 + text_val2 + text_lbl2).properties(height=300)
             st.altair_chart(final_pie2, use_container_width=True)
+            
+            # 🌟 解法二：改用 DataFrame 作為 RWD 圖例 (支援完美換行)
+            st.dataframe(
+                category_counts,
+                column_config={
+                    "分類名稱": st.column_config.TextColumn("證照/分類名稱", width="large"),
+                    "數量": st.column_config.NumberColumn("數量", format="%d", width="small"),
+                    "百分比": st.column_config.TextColumn("佔比", width="small")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
         else:
             st.info("尚無數據可繪製")
             
     with chart_col3:
-        # 1. 移除標題上的 (Top 6)[cite: 6]
         st.markdown(f"#### 【{prefix_text}】證照狀態分佈")
         st.markdown(f"<div style='font-size: 15px; color: #94a3b8; margin-top: -5px;'>🔄 數據更新至：{pd.Timestamp.now().strftime('%Y/%m/%d %H:%M')}</div>", unsafe_allow_html=True)
         
@@ -641,7 +663,6 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         if not df_final.empty:
             group_col = 'LICE_NAME' if is_single_category else 'CATEGORY'
             
-            # 2. 移除 .head(6) 的限制，改為抓取所有類別並依照數量多寡排序[cite: 6]
             top_cats = df_final[group_col].value_counts().index.tolist()
             df_stacked = df_final[df_final[group_col].isin(top_cats)]
             
@@ -705,7 +726,7 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
                 tooltip=alt.value(None)
             )
             
-            # 3. 關鍵修改：將固定的 height=400 替換為 height=alt.Step(50)[cite: 6]
+            # 3. 關鍵修改：將固定的 height=400 替換為 height=alt.Step(50)
             # 這樣每個長條會分配 50px 的高度，資料越多圖表就自動長越高！
             final_stacked = (bars + text_inside + total_text).properties(height=alt.Step(50)).configure_axis(labelFontSize=15)
             with st.container(height=450, border=True):
@@ -811,8 +832,8 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             end_dt = pd.Timestamp.now()
             if freq_choice == "按日": start_dt = end_dt - pd.DateOffset(days=6)
             elif freq_choice == "按周": start_dt = end_dt - pd.DateOffset(weeks=5)
-            elif freq_choice == "按月": start_dt = end_dt - pd.DateOffset(months=5)
-            else: start_dt = end_dt - pd.DateOffset(years=4)
+            elif freq_choice == "按月": start_dt = end_dt - pd.DateOffset(months=12) # 🌟 放大預設為 12 個月
+            else: start_dt = end_dt - pd.DateOffset(years=10) # 🌟 放大預設為 10 年，包容歷史資料
             
         start_dt = start_dt.normalize()
         
@@ -874,16 +895,32 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
             '通過數': pass_counts
         })
         trend_melted = mock_trend.melt('時間', var_name='統計項目', value_name='數量')
+        
+        # 🌟 優化 2：動態 Y 軸與平滑曲線視覺升級
         max_val3 = int(trend_melted['數量'].max())
+        y_max = int(max_val3 * 1.35) if max_val3 > 0 else 5  # 避免全 0 時 Y 軸太扁
+        
         base_line = alt.Chart(trend_melted).encode(
             x=alt.X('時間', axis=alt.Axis(labelAngle=0), title=None),
-            y=alt.Y('數量:Q', title=None, scale=alt.Scale(domain=[0, int(max_val3 * 1.35) if max_val3 > 0 else 10])),
-            color=alt.Color('統計項目', scale=alt.Scale(domain=['申請數', '通過數'], range=['#2563eb', '#10b981']), legend=alt.Legend(title=None, orient="top-right")),
+            y=alt.Y('數量:Q', title=None, scale=alt.Scale(domain=[0, y_max])),
+            color=alt.Color('統計項目', scale=alt.Scale(domain=['申請數', '通過數'], range=['#3B82F6', '#10B981']), legend=alt.Legend(title=None, orient="top-right")),
             tooltip=['時間', '統計項目', '數量']
         )
-        line_chart = base_line.mark_line(point=alt.OverlayMarkDef(size=60))
-        text_labels = base_line.mark_text(clip=False, align='center', baseline='bottom', dy=-12, color='#1e293b', fontWeight='bold', size=15).encode(text='數量:Q')
-        final_line = (line_chart + text_labels).properties(height=250).configure_axis(labelFontSize=13, titleFontSize=15).configure_legend(labelFontSize=13, titleFontSize=14)
+        
+        # 加入 interpolate='monotone' 讓折線變成企業級的平滑曲線
+        line_chart = base_line.mark_line(interpolate='monotone', point=alt.OverlayMarkDef(size=80, color="white", strokeWidth=2))
+        
+        # 優化數值標籤，若數值為 0 則稍微淡化，凸顯有數據的月份
+        text_labels = base_line.mark_text(
+            clip=False, align='center', baseline='bottom', dy=-12, fontWeight='bold', size=15
+        ).encode(
+            text='數量:Q',
+            color=alt.condition(alt.datum.數量 == 0, alt.value('#CBD5E1'), alt.value('#1E293B'))
+        )
+        
+        final_line = (line_chart + text_labels).properties(height=250).configure_axis(
+            labelFontSize=13, titleFontSize=15, gridColor="#F1F5F9"
+        ).configure_legend(labelFontSize=13, titleFontSize=14)
         
         st.altair_chart(final_line, use_container_width=True)
             
