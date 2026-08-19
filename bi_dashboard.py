@@ -752,46 +752,101 @@ def render_dashboard_content(df_final, selected_dept, selected_category, selecte
         with col_filter:
             f_col1, f_col2 = st.columns([0.4, 0.6])
             with f_col1:
-                freq_choice = st.pills("維度", ["按月", "按年"], default="按月", label_visibility="collapsed", key="freq_choice")
+                st.markdown('<div id="freq-pills-marker"></div>', unsafe_allow_html=True)
+                st.markdown("""
+                    <style>
+                    /* 透過隱藏的 marker 精準鎖定該 Column 內的 Pills，強制排成 2x2 正方形 */
+                    div[data-testid="stVerticalBlock"]:has(#freq-pills-marker) [data-testid="stPills"] [data-testid="stButtonGroup"] {
+                        display: flex !important;
+                        flex-wrap: wrap !important;
+                        gap: 6px !important;
+                        width: 100% !important;
+                    }
+                    div[data-testid="stVerticalBlock"]:has(#freq-pills-marker) [data-testid="stPills"] button {
+                        width: calc(50% - 6px) !important;
+                        flex: none !important;
+                        padding: 6px 0px !important;
+                        margin: 0 !important;
+                        justify-content: center !important;
+                    }
+                    div[data-testid="stVerticalBlock"]:has(#freq-pills-marker) [data-testid="stPills"] button p,
+                    div[data-testid="stVerticalBlock"]:has(#freq-pills-marker) [data-testid="stPills"] button span {
+                        font-size: 1rem !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+                freq_choice = st.pills("維度", ["按日", "按周", "按月", "按年"], default="按月", label_visibility="collapsed", key="freq_choice")
             with f_col2:
                 chart_date = st.date_input("區間", value=(), key="chart_date_filter", label_visibility="collapsed")
         
-        # 根據篩選區間與維度動態產生圖表時間標籤
+        # ====== 實作策略一：以申請日為基準的真實數據分析 ======
+        # 1. 決定時間區間
         if len(chart_date) == 2:
             start_d, end_d = chart_date
-            if freq_choice == "按月":
-                dates = pd.date_range(start=start_d.replace(day=1), end=end_d, freq='MS')
-                if len(dates) == 0:
-                    dates = [pd.to_datetime(start_d)]
-                time_labels = [d.strftime('%Y/%m') for d in dates]
-            else:
-                start_year = start_d.year
-                end_year = end_d.year
-                time_labels = [f"{y}年" for y in range(start_year, end_year + 1)]
+            start_dt = pd.to_datetime(start_d)
+            end_dt = pd.to_datetime(end_d) + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         else:
-            if freq_choice == "按月":
-                time_labels = [(pd.Timestamp.now() - pd.DateOffset(months=i)).strftime('%Y/%m') for i in range(5, -1, -1)]
-            else:
-                time_labels = [(pd.Timestamp.now() - pd.DateOffset(years=i)).strftime('%Y年') for i in range(4, -1, -1)]
+            end_dt = pd.Timestamp.now()
+            if freq_choice == "按日": start_dt = end_dt - pd.DateOffset(days=6)
+            elif freq_choice == "按周": start_dt = end_dt - pd.DateOffset(weeks=5)
+            elif freq_choice == "按月": start_dt = end_dt - pd.DateOffset(months=5)
+            else: start_dt = end_dt - pd.DateOffset(years=4)
             
-        n_periods = len(time_labels)
-        if n_periods == 0:
-            time_labels = [pd.Timestamp.now().strftime('%Y/%m') if freq_choice == "按月" else pd.Timestamp.now().strftime('%Y年')]
-            n_periods = 1
+        start_dt = start_dt.normalize()
+        
+        # 2. 決定 pandas frequency，並建立完整的時間基準，避免某些時段無資料而消失
+        freq_map = {"按日": "D", "按周": "W-MON", "按月": "MS", "按年": "YS"}
+        pandas_freq = freq_map.get(freq_choice, "MS")
+        
+        idx_start = start_dt
+        if freq_choice == "按月": idx_start = start_dt.replace(day=1)
+        elif freq_choice == "按年": idx_start = start_dt.replace(month=1, day=1)
+        
+        full_idx = pd.date_range(start=idx_start, end=end_dt, freq=pandas_freq)
+        if len(full_idx) == 0: full_idx = pd.DatetimeIndex([idx_start])
+        
+        trend_df = pd.DataFrame({'APP_DATE': full_idx, '申請數': 0.0, '通過數': 0.0})
+        trend_df = trend_df.set_index('APP_DATE')
+        
+        # 3. 過濾真實資料並透過 APP_DATE 進行 Resample 統計
+        if 'APP_DATE' in df_final.columns:
+            df_actual = df_final.dropna(subset=['APP_DATE']).copy()
+            df_actual = df_actual[(df_actual['APP_DATE'] >= start_dt) & (df_actual['APP_DATE'] <= end_dt)]
             
-        if n_periods == 6 and freq_choice == "按月" and len(chart_date) != 2:
-            ratios = [0.12, 0.15, 0.18, 0.25, 0.20, 0.10]
-        else:
-            import numpy as np
-            np.random.seed(42)
-            raw_ratios = np.random.rand(n_periods)
-            ratios = (raw_ratios / raw_ratios.sum()).tolist()
+            if not df_actual.empty:
+                # 定義：該申請案後續狀態若為「有效」，即視為已通過 (世代分析)
+                df_actual['is_passed'] = (df_actual['STATUS_LABEL'] == '有效').astype(int)
+                
+                actual_agg = df_actual.set_index('APP_DATE').resample(pandas_freq).agg(
+                    申請數=('is_passed', 'count'),
+                    通過數=('is_passed', 'sum')
+                )
+                
+                # 將真實統計資料更新到完整時間軸上
+                trend_df.update(actual_agg)
+                
+        trend_df = trend_df.reset_index()
         
-        app_counts = [int(total_count * r) for r in ratios]
-        pass_counts = [int(valid_count * r) for r in ratios]
-        
-        if total_count > 0: app_counts[-1] += total_count - sum(app_counts)
-        if valid_count > 0: pass_counts[-1] += valid_count - sum(pass_counts)
+        # 4. 產生 X 軸時間標籤與最終陣列
+        def format_time_label(d, f):
+            if f == "按日": 
+                return d.strftime('%m/%d')
+            elif f == "按周": 
+                # 計算當月第幾周 (以該月1號為基準)
+                first_day = d.replace(day=1)
+                adjusted_dom = d.day - 1 + first_day.weekday()
+                week_num = int(adjusted_dom / 7) + 1
+                return f"{d.year}年{d.month}月第{week_num}周"
+            elif f == "按月": 
+                return d.strftime('%Y/%m')
+            else: 
+                return d.strftime('%Y年')
+            
+        time_labels = trend_df['APP_DATE'].apply(lambda x: format_time_label(x, freq_choice)).tolist()
+        app_counts = trend_df['申請數'].fillna(0).astype(int).tolist()
+        pass_counts = trend_df['通過數'].fillna(0).astype(int).tolist()
             
         mock_trend = pd.DataFrame({
             '時間': time_labels,
